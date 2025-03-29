@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Details - Console Game Retro Stock</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+
+        .game-details {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 20px;
+        }
+
+        .game-image {
+            width: 300px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .game-info {
+            flex: 1;
+        }
+
+        .game-info h1 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+
+        .game-meta {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .game-meta p {
+            margin: 5px 0;
+        }
+
+        .price-history {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 150px;
+        }
+
+        .price-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .trend-up {
+            color: #28a745;
+        }
+
+        .trend-down {
+            color: #dc3545;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            height: 250px;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        #priceChart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .error-message {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .game-description {
+            margin-top: 20px;
+        }
+
+        .game-description h2 {
+            font-size: 1.4em;
+            margin-bottom: 10px;
+        }
+
+        .game-media {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .videos-section,
+        .screenshots-section {
+            margin-bottom: 20px;
+        }
+
+        .videos-section h2,
+        .screenshots-section h2 {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+        }
+
+        .videos-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .video-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-item iframe {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: none;
+        }
+
+        .video-title {
+            padding: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .screenshots-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .screenshot-item {
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .screenshot-item:hover {
+            transform: scale(1.05);
+        }
+
+        .screenshot-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← Back to Games</a>
+
+        <div class="game-details">
+            <img id="gameImage" src="/static/placeholder.jpg" alt="Game Image" class="game-image">
+            <div class="game-info">
+                <h1 id="gameName">Loading game details...</h1>
+                <div class="game-meta">
+                    <p><strong>Platform:</strong> <span id="gamePlatform">Loading...</span></p>
+                    <p><strong>Release Date:</strong> <span id="gameReleaseDate">Loading...</span></p>
+                    <p><strong>Rating:</strong> <span id="gameRating">Loading...</span></p>
+                </div>
+                <div class="game-description">
+                    <h2>Description</h2>
+                    <p id="gameDescription">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="price-history">
+            <h2>Price History</h2>
+            <div class="controls">
+                <select id="periodSelect" class="form-select">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 3 months</option>
+                    <option value="180">Last 6 months</option>
+                    <option value="365">Last year</option>
+                    <option value="all">All time</option>
+                </select>
+                <select id="conditionSelect" class="form-select">
+                    <option value="all">All Conditions</option>
+                    <option value="new">New</option>
+                    <option value="like_new">Like New</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                </select>
+            </div>
+
+            <div class="price-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Lowest</div>
+                    <div id="lowestPrice" class="stat-value">Loading...</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Average</div>
+                    <div id="averagePrice" class="stat-value">Loading...</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Highest</div>
+                    <div id="highestPrice" class="stat-value">Loading...</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">30-Day Trend</div>
+                    <div id="priceChange" class="stat-value">Loading...</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="game-media">
+            <div class="videos-section">
+                <h2>Videos</h2>
+                <div id="gameVideos" class="videos-container">Loading...</div>
+            </div>
+
+            <div class="screenshots-section">
+                <h2>Screenshots</h2>
+                <div id="gameScreenshots" class="screenshots-container">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const gameId = window.location.pathname.split('/').pop();
+            loadGameDetails(gameId);
+            loadPriceHistory(gameId);
+        });
+
+        async function loadGameDetails(gameId) {
+            try {
+                const response = await fetch(`/api/games/${gameId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load game details');
+                }
+
+                const game = await response.json();
+                console.log("Game details:", game); // 디버깅을 위한 로그 추가
+
+                // 서버에서 오는 필드명이 대문자로 시작하는 필드를 처리 (IGDB 서비스)
+                const imageUrl = game.ImageURL || game.image_url || '/static/placeholder.jpg';
+                const name = game.Name || game.name || 'Unknown Game';
+                const platform = game.Platform || game.platform || 'N/A';
+                const releaseDate = game.ReleaseDate || game.release_date;
+                const description = game.Description || game.description || game.Summary || game.summary || 'No description available.';
+                const rating = game.Rating || game.rating;
+
+                document.getElementById('gameImage').src = imageUrl;
+                document.getElementById('gameImage').alt = name;
+                document.getElementById('gameName').textContent = name;
+                document.getElementById('gamePlatform').textContent = platform || 'N/A';
+                document.getElementById('gameReleaseDate').textContent = formatDate(releaseDate);
+                document.getElementById('gameDescription').textContent = description;
+                document.getElementById('gameRating').textContent = rating ? `${rating.toFixed(1)}/100` : 'N/A';
+
+                // Load videos if available
+                const videosContainer = document.getElementById('gameVideos');
+                if (game.videos && game.videos.length > 0) {
+                    videosContainer.innerHTML = game.videos.map(video => {
+                        // YouTube URL에서 ID 추출
+                        let videoId = "";
+                        const url = video.URL || video.url;
+                        const title = video.Title || video.title || "Game Video";
+
+                        if (url) {
+                            // YouTube URL 형식 확인하고 ID 추출
+                            const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+                            const match = url.match(youtubeRegex);
+                            if (match && match[1]) {
+                                videoId = match[1];
+                            }
+                        }
+
+                        if (!videoId) {
+                            return `<div class="video-item"><p>Invalid video URL: ${url}</p></div>`;
+                        }
+
+                        return `
+                            <div class="video-item">
+                                <iframe src="https://www.youtube.com/embed/${videoId}" 
+                                        title="${title}"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowfullscreen></iframe>
+                                <div class="video-title">${title}</div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    videosContainer.innerHTML = 'No videos available.';
+                }
+
+                // Load screenshots if available
+                const screenshotsContainer = document.getElementById('gameScreenshots');
+                if (game.screenshots && game.screenshots.length > 0) {
+                    screenshotsContainer.innerHTML = game.screenshots.map(url => `
+                        <div class="screenshot-item">
+                            <img src="${url}" alt="Game Screenshot" loading="lazy">
+                        </div>
+                    `).join('');
+                } else {
+                    screenshotsContainer.innerHTML = 'No screenshots available.';
+                }
+            } catch (error) {
+                console.error('Error loading game details:', error);
+                document.getElementById('gameName').textContent = 'Error loading game details';
+            }
+        }
+
+        let priceChart = null;
+        const gameId = window.location.pathname.split('/').pop();
+
+        function loadPriceHistory(days = 30, condition = 'all') {
+            const chartContainer = document.getElementById('priceChart');
+            if (!chartContainer) {
+                console.error('Price chart container not found');
+                return;
+            }
+
+            // Clear existing chart
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            fetch(`/api/games/${gameId}/prices?days=${days}&condition=${condition}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.history || data.history.length === 0) {
+                        chartContainer.innerHTML = '<div class="no-data" style="text-align: center; color: #666; padding: 20px;">No price data available for this period</div>';
+                        return;
+                    }
+
+                    const dates = data.history.map(item => new Date(item.date).toLocaleDateString());
+                    const prices = data.history.map(item => item.price);
+
+                    const ctx = chartContainer.getContext('2d');
+                    priceChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: dates,
+                            datasets: [{
+                                label: 'Price',
+                                data: prices,
+                                borderColor: 'rgb(75, 192, 192)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                                tension: 0.2,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                    callbacks: {
+                                        label: function (context) {
+                                            return `Price: $${context.parsed.y.toFixed(2)}`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: false,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.1)'
+                                    },
+                                    ticks: {
+                                        callback: function (value) {
+                                            return '$' + value.toFixed(2);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // Update price stats
+                    if (data.stats) {
+                        updatePriceStats(data.stats);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading price history:', error);
+                    chartContainer.innerHTML = '<div class="error" style="text-align: center; color: #dc3545; padding: 20px;">Failed to load price history</div>';
+                });
+        }
+
+        function updatePriceStats(stats) {
+            document.getElementById('lowestPrice').textContent = `$${stats.lowest?.toFixed(2) || 'N/A'}`;
+            document.getElementById('averagePrice').textContent = `$${stats.average?.toFixed(2) || 'N/A'}`;
+            document.getElementById('highestPrice').textContent = `$${stats.highest?.toFixed(2) || 'N/A'}`;
+
+            const trendElement = document.getElementById('priceChange');
+            const trend = stats.trend || 0;
+            const trendClass = trend >= 0 ? 'trend-up' : 'trend-down';
+            const trendSymbol = trend >= 0 ? '↑' : '↓';
+            trendElement.className = trendClass;
+            trendElement.textContent = `${trendSymbol} ${Math.abs(trend).toFixed(2)}%`;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Event listeners for period and condition selectors
+        document.getElementById('periodSelect').addEventListener('change', function (e) {
+            const days = e.target.value;
+            const condition = document.getElementById('conditionSelect').value;
+            loadPriceHistory(days, condition);
+        });
+
+        document.getElementById('conditionSelect').addEventListener('change', function (e) {
+            const condition = e.target.value;
+            const days = document.getElementById('periodSelect').value;
+            loadPriceHistory(days, condition);
+        });
+    </script>
+</body>
+
+</html>

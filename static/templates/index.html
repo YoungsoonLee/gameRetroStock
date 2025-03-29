@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Retro Stock</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+
+        .game-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .game-image {
+            border-radius: 8px;
+            object-fit: cover;
+            max-height: 120px;
+        }
+
+        .price-chart {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+
+        .list-view-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .list-view-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+        }
+
+        .game-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .game-info {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .price-info {
+            text-align: right;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .chart-container {
+            height: 60px;
+            position: relative;
+            margin-bottom: 5px;
+            width: 100%;
+        }
+
+        .grid-chart-container {
+            height: 60px;
+            position: relative;
+            width: 100%;
+            margin-top: 0;
+        }
+
+        .view-toggle {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .text-success {
+            color: #28a745 !important;
+        }
+
+        .text-danger {
+            color: #dc3545 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="my-4">ConsoleGame Retro Stock</h1>
+
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search games...">
+            </div>
+            <div class="col-md-3">
+                <select id="platformSelect" class="form-select">
+                    <option value="All Platforms">All Platforms</option>
+                    <!-- 플랫폼 목록이 동적으로 로드됩니다 -->
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button id="searchBtn" class="btn btn-primary w-100">Search</button>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end mb-4">
+            <div class="btn-group">
+                <button id="listViewBtn" class="btn btn-outline-primary">
+                    <i class="bi bi-list"></i> List View
+                </button>
+                <button id="gridViewBtn" class="btn btn-primary active">
+                    <i class="bi bi-grid"></i> Grid View
+                </button>
+            </div>
+        </div>
+
+        <div id="gameContainer" class="mb-4">
+            <!-- Game list will be displayed here -->
+            <div class="text-center my-5" id="tempLoadingIndicator">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading games...</p>
+            </div>
+        </div>
+
+        <div id="pagination" class="d-flex justify-content-center my-4">
+            <!-- Pagination will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        // Store chart instances to prevent memory leaks
+        const chartInstances = {};
+        let currentView = 'grid';
+        let currentPage = 1;
+        let totalPages = 1;
+        let searchMode = false;
+        let lastSearchQuery = '';
+        let lastPlatform = 'All Platforms';
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // 플랫폼 목록 로드
+            loadPlatforms();
+
+            // Initialize view mode buttons
+            document.getElementById('listViewBtn').addEventListener('click', function () {
+                setViewMode('list');
+            });
+
+            document.getElementById('gridViewBtn').addEventListener('click', function () {
+                setViewMode('grid');
+            });
+
+            // Initialize search button
+            document.getElementById('searchBtn').addEventListener('click', function () {
+                const query = document.getElementById('searchInput').value.trim();
+                const platform = document.getElementById('platformSelect').value;
+
+                searchMode = true;
+                lastSearchQuery = query;
+                lastPlatform = platform;
+                currentPage = 1;
+
+                loadGames();
+            });
+
+            // Allow Enter key for search
+            document.getElementById('searchInput').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('searchBtn').click();
+                }
+            });
+
+            // Load initial games (TOP 100)
+            loadGames();
+        });
+
+        function setViewMode(mode) {
+            currentView = mode;
+
+            // Update button states
+            const listBtn = document.getElementById('listViewBtn');
+            const gridBtn = document.getElementById('gridViewBtn');
+
+            if (mode === 'list') {
+                listBtn.classList.add('btn-primary');
+                listBtn.classList.remove('btn-outline-primary');
+                gridBtn.classList.add('btn-outline-primary');
+                gridBtn.classList.remove('btn-primary');
+            } else {
+                gridBtn.classList.add('btn-primary');
+                gridBtn.classList.remove('btn-outline-primary');
+                listBtn.classList.add('btn-outline-primary');
+                listBtn.classList.remove('btn-primary');
+            }
+
+            // Redisplay current games in the new view mode
+            const container = document.getElementById('gameContainer');
+
+            // Redisplay current games list
+            if (container.dataset.games) {
+                try {
+                    const games = JSON.parse(container.dataset.games);
+                    displayGames(games);
+                } catch (err) {
+                    console.error('Error parsing stored games data:', err);
+                }
+            }
+        }
+
+        function loadGames() {
+            const container = document.getElementById('gameContainer');
+
+            // 로딩 인디케이터 처리 방식 변경
+            container.innerHTML = `
+                <div class="text-center my-5" id="tempLoadingIndicator">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading games...</p>
+                </div>
+            `;
+
+            // Determine API endpoint based on search mode
+            let url;
+            if (searchMode) {
+                console.log("Search mode: query=", lastSearchQuery, "platform=", lastPlatform);
+
+                let searchUrl = `/api/games/search?page=${currentPage}&limit=100`;
+
+                if (lastSearchQuery) {
+                    searchUrl += `&q=${encodeURIComponent(lastSearchQuery)}`;
+                }
+
+                if (lastPlatform !== 'All Platforms') {
+                    searchUrl += `&platform=${encodeURIComponent(lastPlatform)}`;
+                }
+
+                // 검색어가 없고 플랫폼도 기본값인 경우 기본 목록으로 전환
+                if (!lastSearchQuery && lastPlatform === 'All Platforms') {
+                    url = `/api/games/top?page=${currentPage}&limit=100`;
+                    console.log("Empty search, switching to top games URL:", url);
+                } else {
+                    url = searchUrl;
+                    console.log("Search URL:", url);
+                }
+            } else {
+                url = `/api/games/top?page=${currentPage}&limit=100`;
+                console.log("Top games URL:", url);
+            }
+
+            fetch(url)
+                .then(response => {
+                    console.log("Response status:", response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (err) {
+                            console.error('Failed to parse response:', text);
+                            throw new Error('Invalid JSON response');
+                        }
+                    });
+                })
+                .then(data => {
+                    console.log("Game data received:", data);
+
+                    if (!data || !data.items || !Array.isArray(data.items)) {
+                        container.innerHTML = '<div class="alert alert-warning">No games found</div>';
+                        return;
+                    }
+
+                    const games = data.items;
+                    const total = data.total || 0;
+
+                    console.log(`Loaded ${games.length} games, total: ${total}`);
+
+                    // Store games data for view switching
+                    container.dataset.games = JSON.stringify(games);
+
+                    // Calculate total pages
+                    totalPages = Math.ceil(total / 100);
+                    console.log(`Total pages: ${totalPages}, current page: ${currentPage}`);
+
+                    // Display games and pagination
+                    displayGames(games);
+                    updatePagination();
+                })
+                .catch(error => {
+                    console.error('Error loading games:', error);
+                    container.innerHTML = `
+                        <div class="alert alert-danger">
+                            Failed to load games: ${error.message}
+                        </div>
+                    `;
+                });
+        }
+
+        function displayGames(games) {
+            const container = document.getElementById('gameContainer');
+
+            // Clear previous content
+            container.innerHTML = '';
+
+            // Set container class based on view mode
+            if (currentView === 'grid') {
+                container.className = 'row row-cols-1 row-cols-md-5 g-4 mb-4';
+            } else {
+                container.className = 'mb-4';
+            }
+
+            if (!games || games.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning">No games found</div>';
+                return;
+            }
+
+            console.log("Games before filtering:", games.length);
+
+            // Filter games by platform if a specific platform is selected
+            if (lastPlatform !== 'All Platforms') {
+                const platformName = lastPlatform;
+                games = games.filter(game => {
+                    const gamePlatform = game.Platform || game.platform || '';
+                    return gamePlatform.toLowerCase().includes(platformName.toLowerCase());
+                });
+                console.log(`Filtered to ${games.length} games matching platform "${lastPlatform}"`);
+            }
+
+            if (games.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning">No games found for selected platform</div>';
+                return;
+            }
+
+            // Default placeholder as data URI for broken images
+            const placeholderImage = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22150%22%20height%3D%22150%22%20viewBox%3D%220%200%20150%20150%22%3E%3Crect%20width%3D%22150%22%20height%3D%22150%22%20fill%3D%22%23EEEEEE%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20font-size%3D%2218%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%20fill%3D%22%23999999%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';
+
+            // 검색 결과 표시
+            games.forEach(game => {
+                // Get the game ID, checking all possible property name formats
+                const gameId = game.ID || game.Id || game.id;
+
+                // Skip if no valid ID
+                if (!gameId) {
+                    console.error('Game object missing ID:', game);
+                    return;
+                }
+
+                // Log each game's platform for debugging
+                const platform = game.Platform || game.platform || 'N/A';
+                console.log(`Game: ${game.Name || game.name}, Platform: ${platform}`);
+
+                // Create game element
+                const gameElement = document.createElement('div');
+
+                // Handle different field name formats - IGDB API returns lowercase, our model uses uppercase
+                const name = game.Name || game.name || 'Unnamed Game';
+                const releaseDate = game.ReleaseDate || game.release_date;
+                const formattedDate = releaseDate ? new Date(releaseDate).toLocaleDateString() : 'N/A';
+                const imageUrl = game.ImageURL || game.image_url || placeholderImage;
+                const rating = game.Rating || game.rating;
+                const ratingText = typeof rating === 'number' ? `${rating.toFixed(1)}` : 'N/A';
+
+                if (currentView === 'grid') {
+                    gameElement.className = 'col';
+                    gameElement.innerHTML = `
+                        <div class="card h-100 shadow-sm game-card" data-game-id="${gameId}">
+                            <img src="${imageUrl}" class="card-img-top" alt="${name}" 
+                                 style="height: 180px; object-fit: cover;" 
+                                 onerror="this.onerror=null; this.src='${placeholderImage}'">
+                            <div class="card-body p-3">
+                                <h6 class="card-title mb-1">${name}</h6>
+                                <p class="card-text small mb-1 fw-bold text-primary">${platform}</p>
+                                <p class="card-text small text-muted mb-2">${formattedDate}</p>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold" id="priceLabel${gameId}">$N/A</span>
+                                    <span class="price-trend small" id="priceTrend${gameId}">Loading...</span>
+                                </div>
+                                <div class="grid-chart-container">
+                                    <canvas id="priceChart${gameId}" class="price-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // 그리드 뷰에서 카드 클릭 이벤트 추가
+                    const card = gameElement.querySelector('.card');
+                    card.addEventListener('click', function () {
+                        window.location.href = `/games/${gameId}`;
+                    });
+
+                } else {
+                    gameElement.className = 'list-view-item';
+                    gameElement.setAttribute('data-game-id', gameId);
+                    gameElement.innerHTML = `
+                        <div class="row align-items-center">
+                            <div class="col-md-2">
+                                <img src="${imageUrl}" alt="${name}" class="game-image img-fluid" 
+                                     style="max-height: 100px; width: auto;" 
+                                     onerror="this.onerror=null; this.src='${placeholderImage}'">
+                            </div>
+                            <div class="col-md-3">
+                                <div class="game-title">${name}</div>
+                                <div class="game-info fw-bold text-primary">Console: ${platform}</div>
+                                <div class="game-info">Release Date: ${formattedDate}</div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <div class="game-info mb-1">Price:</div>
+                                    <div class="price-info" id="priceLabel${gameId}">$N/A</div>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="row">
+                                    <div class="col-9">
+                                        <div class="chart-container">
+                                            <canvas id="priceChart${gameId}" class="price-chart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-3 d-flex align-items-center">
+                                        <div class="price-trend" id="priceTrend${gameId}">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // 리스트 뷰에서 항목 클릭 이벤트 추가
+                    gameElement.addEventListener('click', function () {
+                        window.location.href = `/games/${gameId}`;
+                    });
+                }
+
+                container.appendChild(gameElement);
+                loadPriceHistory(gameId);
+            });
+        }
+
+        function updatePagination() {
+            const paginationElement = document.getElementById('pagination');
+            paginationElement.innerHTML = '';
+
+            if (totalPages <= 1) {
+                console.log("No pagination needed, only one page.");
+                return;
+            }
+
+            console.log(`Creating pagination. Current page: ${currentPage}, Total pages: ${totalPages}`);
+
+            // Create pagination controls
+            const nav = document.createElement('nav');
+            nav.setAttribute('aria-label', 'Page navigation');
+
+            const ul = document.createElement('ul');
+            ul.className = 'pagination';
+
+            // Previous button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+
+            const prevLink = document.createElement('a');
+            prevLink.className = 'page-link';
+            prevLink.href = 'javascript:void(0)';
+            prevLink.setAttribute('aria-label', 'Previous');
+            prevLink.innerHTML = '<span aria-hidden="true">&laquo;</span>';
+
+            prevLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (currentPage > 1) {
+                    console.log(`Moving to previous page: ${currentPage} -> ${currentPage - 1}`);
+                    currentPage--;
+                    loadGames();
+                }
+            });
+
+            prevLi.appendChild(prevLink);
+            ul.appendChild(prevLi);
+
+            // Page numbers - 페이지 번호를 간단히 처리
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+
+            // First page link if needed
+            if (startPage > 1) {
+                const firstLi = document.createElement('li');
+                firstLi.className = 'page-item';
+
+                const firstLink = document.createElement('a');
+                firstLink.className = 'page-link';
+                firstLink.href = 'javascript:void(0)';
+                firstLink.textContent = '1';
+
+                firstLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    currentPage = 1;
+                    loadGames();
+                });
+
+                firstLi.appendChild(firstLink);
+                ul.appendChild(firstLi);
+
+                if (startPage > 2) {
+                    const ellipsisLi = document.createElement('li');
+                    ellipsisLi.className = 'page-item disabled';
+
+                    const ellipsisSpan = document.createElement('span');
+                    ellipsisSpan.className = 'page-link';
+                    ellipsisSpan.textContent = '...';
+
+                    ellipsisLi.appendChild(ellipsisSpan);
+                    ul.appendChild(ellipsisLi);
+                }
+            }
+
+            // Page number links
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+
+                const link = document.createElement('a');
+                link.className = 'page-link';
+                link.href = 'javascript:void(0)';
+                link.textContent = i;
+
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (i !== currentPage) {
+                        console.log(`Changing page: ${currentPage} -> ${i}`);
+                        currentPage = i;
+                        loadGames();
+                    }
+                });
+
+                li.appendChild(link);
+                ul.appendChild(li);
+            }
+
+            // Last page link if needed
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsisLi = document.createElement('li');
+                    ellipsisLi.className = 'page-item disabled';
+
+                    const ellipsisSpan = document.createElement('span');
+                    ellipsisSpan.className = 'page-link';
+                    ellipsisSpan.textContent = '...';
+
+                    ellipsisLi.appendChild(ellipsisSpan);
+                    ul.appendChild(ellipsisLi);
+                }
+
+                const lastLi = document.createElement('li');
+                lastLi.className = 'page-item';
+
+                const lastLink = document.createElement('a');
+                lastLink.className = 'page-link';
+                lastLink.href = 'javascript:void(0)';
+                lastLink.textContent = totalPages;
+
+                lastLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    currentPage = totalPages;
+                    loadGames();
+                });
+
+                lastLi.appendChild(lastLink);
+                ul.appendChild(lastLi);
+            }
+
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+
+            const nextLink = document.createElement('a');
+            nextLink.className = 'page-link';
+            nextLink.href = 'javascript:void(0)';
+            nextLink.setAttribute('aria-label', 'Next');
+            nextLink.innerHTML = '<span aria-hidden="true">&raquo;</span>';
+
+            nextLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (currentPage < totalPages) {
+                    console.log(`Moving to next page: ${currentPage} -> ${currentPage + 1}`);
+                    currentPage++;
+                    loadGames();
+                }
+            });
+
+            nextLi.appendChild(nextLink);
+            ul.appendChild(nextLi);
+
+            nav.appendChild(ul);
+            paginationElement.appendChild(nav);
+        }
+
+        function loadPriceHistory(gameId) {
+            // Skip undefined game IDs
+            if (!gameId) {
+                console.error('Attempted to load price history for undefined game ID');
+                return;
+            }
+
+            const priceContainer = document.getElementById(`priceTrend${gameId}`);
+            if (!priceContainer) return;
+
+            const priceLabel = document.getElementById(`priceLabel${gameId}`);
+
+            priceContainer.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
+
+            fetch(`/api/games/${gameId}/prices?days=30`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text().then(text => {
+                        // Try to parse the response as JSON
+                        try {
+                            return JSON.parse(text);
+                        } catch (err) {
+                            console.error(`Invalid JSON response for game ${gameId}:`, text);
+                            throw new Error('Invalid JSON response');
+                        }
+                    });
+                })
+                .then(data => {
+                    console.log(`Price data for game ${gameId}:`, data); // 디버깅을 위한 로그 추가
+
+                    if (!data) {
+                        priceContainer.textContent = 'N/A';
+                        if (priceLabel) priceLabel.textContent = '$N/A';
+                        return;
+                    }
+
+                    // Check if history or stats are missing
+                    if (!data.history || !Array.isArray(data.history) || data.history.length === 0) {
+                        priceContainer.textContent = 'N/A';
+                        if (priceLabel) priceLabel.textContent = '$N/A';
+                        return;
+                    }
+
+                    try {
+                        createPriceChart(gameId, data);
+
+                        if (data.stats) {
+                            console.log(`Stats for game ${gameId}:`, data.stats); // 디버깅을 위한 로그 추가
+                            updatePriceStats(gameId, data.stats);
+
+                            // 가격 레이블 업데이트 - 필드명 대소문자 처리
+                            const current = data.stats.Current || data.stats.current;
+                            const average = data.stats.Average || data.stats.average;
+
+                            if (priceLabel) {
+                                if (typeof current === 'number') {
+                                    priceLabel.textContent = `$${current.toFixed(2)}`;
+                                } else if (typeof average === 'number') {
+                                    priceLabel.textContent = `$${average.toFixed(2)}`;
+                                } else {
+                                    priceLabel.textContent = '$N/A';
+                                }
+                            }
+                        } else {
+                            priceContainer.textContent = 'N/A';
+                            if (priceLabel) priceLabel.textContent = '$N/A';
+                        }
+                    } catch (err) {
+                        console.error(`Error processing price data for game ${gameId}:`, err);
+                        priceContainer.textContent = 'Error';
+                        if (priceLabel) priceLabel.textContent = '$N/A';
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error loading price history for game ${gameId}:`, error);
+                    if (priceContainer) {
+                        priceContainer.textContent = 'N/A';
+                    }
+                    if (priceLabel) {
+                        priceLabel.textContent = '$N/A';
+                    }
+                });
+        }
+
+        function createPriceChart(gameId, data) {
+            const canvas = document.getElementById(`priceChart${gameId}`);
+            if (!canvas) return;
+
+            // Support both history and History (case-insensitive)
+            const history = data.history || data.History;
+            if (!history || history.length === 0) {
+                return;
+            }
+
+            // Destroy existing chart if it exists
+            if (chartInstances[gameId]) {
+                chartInstances[gameId].destroy();
+                delete chartInstances[gameId];
+            }
+
+            // Sort data by date
+            const sortedData = [...history].sort((a, b) => {
+                // Support both Date/date and Price/price formats
+                const dateA = new Date(a.Date || a.date);
+                const dateB = new Date(b.Date || b.date);
+                return dateA - dateB;
+            });
+
+            const prices = sortedData.map(point => point.Price || point.price);
+            const dates = sortedData.map(point => {
+                const date = new Date(point.Date || point.date);
+                return date.toLocaleDateString();
+            });
+
+            const ctx = canvas.getContext('2d');
+            chartInstances[gameId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        data: prices,
+                        borderColor: '#007bff',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        fill: {
+                            target: 'origin',
+                            above: 'rgba(0, 123, 255, 0.1)',
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `$${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: false,
+                            grid: {
+                                display: false
+                            },
+                            beginAtZero: false
+                        }
+                    },
+                    animation: {
+                        duration: 0 // 성능 향상을 위해 애니메이션 비활성화
+                    },
+                    elements: {
+                        line: {
+                            borderWidth: 1.5
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            bottom: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePriceStats(gameId, stats) {
+            const statsElement = document.getElementById(`priceTrend${gameId}`);
+            if (!statsElement) return;
+
+            if (!stats) {
+                statsElement.textContent = 'N/A';
+                return;
+            }
+
+            try {
+                // 대소문자 구분 없이 필드에 접근
+                const current = stats.Current || stats.current ||
+                    (stats.Average || stats.average || 0);
+                const trend = stats.Trend || stats.trend || 0;
+
+                const trendText = trend >= 0 ? `↑ +${trend.toFixed(1)}%` : `↓ ${trend.toFixed(1)}%`;
+                const trendClass = trend >= 0 ? 'text-success' : 'text-danger';
+
+                // In list view, just show the trend
+                if (currentView === 'list') {
+                    statsElement.className = trendClass;
+                    statsElement.textContent = trendText;
+                } else {
+                    // In grid view, show just the trend (price is shown separately)
+                    statsElement.className = trendClass;
+                    statsElement.textContent = trendText;
+                }
+            } catch (err) {
+                console.error(`Error updating price stats for game ${gameId}:`, err, stats);
+                statsElement.textContent = 'N/A';
+            }
+        }
+
+        // 플랫폼 목록 로드 함수
+        function loadPlatforms() {
+            const platformSelect = document.getElementById('platformSelect');
+
+            // 기본 "All Platforms" 옵션 유지
+            platformSelect.innerHTML = '<option value="All Platforms">All Platforms</option>';
+
+            fetch('/api/platforms')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(platforms => {
+                    if (!platforms || !Array.isArray(platforms)) {
+                        console.error('Invalid platforms data:', platforms);
+                        return;
+                    }
+
+                    console.log(`Loaded ${platforms.length} platforms`);
+
+                    // 서버에서 필터링된 주요 플랫폼 목록을 그대로 표시
+                    platforms.forEach(platform => {
+                        const option = document.createElement('option');
+                        option.value = platform.name;
+                        option.textContent = platform.name;
+                        if (platform.abbreviation) {
+                            option.textContent += ` (${platform.abbreviation})`;
+                        }
+                        platformSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading platforms:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

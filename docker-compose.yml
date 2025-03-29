@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres
+    container_name: gameretrostock-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: test1234
+      POSTGRES_DB: gameretrostock
+    ports:
+      - 5432:5432
+    #volumes:
+    #  - ./pgdata:/var/lib/postgresql/data
