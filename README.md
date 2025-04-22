@@ -61,3 +61,5 @@ DATABASE_URL=postgresql://user:password@localhost:5432/gameretrostock
 - `GET /api/games/:id` - Get detailed game information
 - `GET /api/platforms` - Get list of gaming platforms
 - `GET /api/games/:id/prices` - Get price history for a game 
+
+
